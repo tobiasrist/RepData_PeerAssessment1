@@ -69,10 +69,10 @@ The resulting values are:
 
 ## What is the average daily activity pattern?
 
-Contrary to the analysis above, we now summarize the original dataset by the
-*interval* variable, dropping the date information on the way and calculating the mean of
-every 5-minute-interval to reveal an averaged daily pattern of steps, visualized
-in a time series plot:
+To extend the analysis above, we now summarize the original dataset by the
+`interval` variable, dropping the date information on the way and calculating
+the mean of every 5-minute-interval to reveal an averaged daily pattern of
+steps, visualized in a time series plot:
 
 
 ```r
@@ -110,7 +110,7 @@ The time interval with the maximum number of average steps across all days is
 
 ## Imputing missing values
 
-Going back to the original dataset, we report the number of `NA`s in the *steps*
+Going back to the original dataset, we report the number of `NA`s in the `steps`
 variable of this dataset:
 
 
@@ -124,7 +124,7 @@ The number of `NA` rows in the dataset is 2304.
 
 To impute missing values into the dataset, we assume that the daily activity
 patterns are sustainable and that the `NA` values are introduced into the original
-dataset by the person simply not wearing the tracking device. If this is true,
+dataset by the person simply not wearing the monitoring device. If this is true,
 the assumption that the person might still be following their general activity
 patterns for that particular time of the day / interval seems reasonable.
 
@@ -155,11 +155,11 @@ stepsPerDayImp <- stepdataImputed %>%
 
 histImp <- ggplot(stepsPerDayImp, aes(totalSteps)) + 
           geom_histogram(binwidth=1000, fill="firebrick", color="black") +
-          labs(title = expression(atop("Histogram of Steps per Day",
+          labs(title = expression(atop(bold("Histogram of Steps per Day"),
                                        atop(italic("NA values imputed")))),
                x = "Number of steps per day",
                y = "Frequency") +
-          theme(plot.title = element_text(size=16, face="bold", vjust=-1),
+          theme(plot.title = element_text(size=16, vjust=-1),
                 axis.title.x = element_text(vjust=-0.35),
                 axis.title.y = element_text(vjust=0.35),
                 panel.grid.minor.x = element_blank(),
@@ -171,5 +171,91 @@ histImp
 
 ![](PA1_template_files/figure-html/unnamed-chunk-8-1.png) 
 
+We again calculate the **mean** and **median** values for the number of steps taken
+per day, now on the imputed dataset:
+
+
+```r
+meanStepsImp <- stepsPerDayImp %>%
+                     summarize(mean(totalSteps))
+medianStepsImp <- stepsPerDayImp %>%
+                     summarize(median(totalSteps))
+```
+
+The resulting values are:
+
+- Mean number of steps per day: 10765.64, vs. originally
+9354.23 steps
+- Median number of steps per day: 10762, vs. originally
+10395 steps
+
+As to be expected, both the mean and the median of the imputed dataset are
+higher than in the original dataset. The fact that the `na.rm = TRUE` option in
+summarizing the original dataset removes those intervals when summing the daily
+steps introduces a skew to the dataset. Adding the imputed values to the dataset
+
+1. increase the overall number of steps to be summarized, hence also increasing
+the mean and median
+2. reduce some of the skew / imbalance of the dataset which is also reflected in
+the mean and median values getting closer to each other
+
+Of course, whether or not our imputing strategy is actually "improving" the
+dataset with regards to the real number of steps taken by the individual cannot
+be fully concluded from the data available. However, the assumption that the 
+real number of steps taken in all `NA` interval is not 0 but a greater number 
+oriented towards the general activity pattern still seems very valid.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+We create a new variable `weekday` on the imputed dataset, initially assign it 
+the names of the respective weekdays using the `weekdays()` function in R, and
+then distinguish between weekends and weekdays based on the labels of the day.
+
+To exctract the daily patterns, we essentially repeat the analysis steps from 
+the **What is the average daily activity pattern?** section, but additionally 
+group by the new `weekday` variable. We then provide the activity plot 
+subdivided by weekday/weekend activity.
+
+
+
+```r
+# Set the local time format to english to ensure that the weekday labels
+# ("Saturday", "Sunday") are consistent across localized installs of R
+Sys.setlocale("LC_TIME", "C")
+```
+
+```
+## [1] "C"
+```
+
+```r
+stepdataWeekday <- stepdataImputed %>%
+                      mutate(weekday = weekdays(date)) %>%
+                      mutate(weekday = ifelse(weekday %in% c("Saturday",
+                                                             "Sunday"),
+                                              "weekend",
+                                              "weekday")) %>%
+                      mutate(weekday = as.factor(weekday))
+
+weekdayPattern <- stepdataWeekday %>%
+                      group_by(interval, weekday) %>%
+                      summarize(meanSteps = mean(steps))
+
+pattWD <- ggplot(weekdayPattern, aes(interval, meanSteps)) +
+            geom_line(color="darkblue") +
+            facet_wrap(~ weekday, ncol = 1) +
+            labs(title = "Daily Activity Pattern",
+                 x = "5-minute interval",
+                 y = "Average number of steps") +
+            theme(plot.title = element_text(size=16, face="bold", vjust=2),
+                  axis.title.x = element_text(vjust=-0.35),
+                  axis.title.y = element_text(vjust=0.35),
+                  panel.grid.minor.x = element_blank(),
+                  panel.grid.major.x = element_blank()) +
+            scale_x_continuous(breaks=seq(0, 2400, by = 400))
+pattWD
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-10-1.png) 
+
+
